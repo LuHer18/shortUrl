@@ -1,16 +1,22 @@
 import { FormProvider } from 'react-hook-form'
+import { useState } from 'react'
 import { Button } from './components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './components/ui/dialog'
 import { Input } from './components/ui/input'
+import { Select } from './components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './components/ui/table'
 import { Pagination } from './components/ui/pagination'
 import { useShortUrl } from './hooks/useShortUrl'
+import { FormInputs } from './types'
 import { Loader2 } from 'lucide-react'
 
 function App() {
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const { 
     urls, 
     loading, 
+    strategies,
+    loadingStrategies,
     methods, 
     createShortUrl, 
     deleteUrl, 
@@ -21,20 +27,25 @@ function App() {
     changePageSize 
   } = useShortUrl()
 
+  const handleCreateShortUrl = async (data: FormInputs) => {
+    await createShortUrl(data)
+    setIsModalOpen(false) // Cerrar el modal después de crear
+  }
+
   return (
     <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Acortador de URLs</h1>
-        <Dialog>
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogTrigger asChild>
-            <Button>Crear nueva URL</Button>
+            <Button onClick={() => setIsModalOpen(true)}>Crear nueva URL</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Crear URL corta</DialogTitle>
             </DialogHeader>
             <FormProvider {...methods}>
-              <form onSubmit={methods.handleSubmit(createShortUrl)} className="grid gap-4 py-4">
+              <form onSubmit={methods.handleSubmit(handleCreateShortUrl)} className="grid gap-4 py-4">
                 <div className="grid gap-2">
                   <Input
                     name="name"
@@ -47,7 +58,26 @@ function App() {
                     placeholder="URL a acortar (ej: https://miblog.com)"
                   />
                 </div>
-                <Button type="submit">Crear</Button>
+                <div className="grid gap-2">
+                  {loadingStrategies ? (
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-sm text-muted-foreground">Cargando estrategias...</span>
+                    </div>
+                  ) : (
+                    <Select
+                      name="strategy"
+                      placeholder="Seleccionar estrategia de encriptación"
+                      options={strategies.map(strategy => ({
+                        value: strategy.type,
+                        label: strategy.type
+                      }))}
+                    />
+                  )}
+                </div>
+                <Button type="submit" disabled={loadingStrategies || strategies.length === 0}>
+                  Crear
+                </Button>
               </form>
             </FormProvider>
           </DialogContent>

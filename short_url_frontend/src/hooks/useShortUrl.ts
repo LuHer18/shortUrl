@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
-import { ShortUrl, FormInputs, PaginatedResponse, PaginationParams } from '../types'
+import { ShortUrl, FormInputs, PaginatedResponse, PaginationParams, EncryptionStrategy } from '../types'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
 
 export const useShortUrl = () => {
   const [urls, setUrls] = useState<ShortUrl[]>([])
   const [loading, setLoading] = useState(false)
+  const [strategies, setStrategies] = useState<EncryptionStrategy[]>([])
+  const [loadingStrategies, setLoadingStrategies] = useState(false)
   const [pagination, setPagination] = useState<PaginationParams>({
     page: 0,
     size: 10,
@@ -19,9 +21,30 @@ export const useShortUrl = () => {
   const methods = useForm<FormInputs>({
     defaultValues: {
       name: '',
-      urlOriginal: ''
+      urlOriginal: '',
+      strategy: ''
     }
   })
+
+  const fetchStrategies = async () => {
+    setLoadingStrategies(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/encrypt/all`)
+      if (!response.ok) {
+        throw new Error('Error al cargar las estrategias')
+      }
+      const data: EncryptionStrategy[] = await response.json()
+      setStrategies(data)
+      // Si hay estrategias, seleccionar la primera por defecto
+      if (data.length > 0 && !methods.getValues('strategy')) {
+        methods.setValue('strategy', data[0].type)
+      }
+    } catch (error) {
+      console.error('Error fetching strategies:', error)
+    } finally {
+      setLoadingStrategies(false)
+    }
+  }
 
   const fetchUrls = async (params: PaginationParams) => {
     setLoading(true)
@@ -57,11 +80,12 @@ export const useShortUrl = () => {
 
   useEffect(() => {
     fetchUrls(pagination)
+    fetchStrategies()
   }, [pagination])
 
   const createShortUrl = async (data: FormInputs) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/url`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/url/create?strategy=${data.strategy}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -116,6 +140,8 @@ export const useShortUrl = () => {
   return {
     urls,
     loading,
+    strategies,
+    loadingStrategies,
     methods,
     createShortUrl,
     deleteUrl,

@@ -10,6 +10,12 @@ export interface ShortUrl {
 export interface FormInputs {
   name: string
   urlOriginal: string
+  strategy: string
+}
+
+export interface EncryptionStrategy {
+  id: number
+  type: string
 }
 
 export interface PaginatedResponse<T> {
