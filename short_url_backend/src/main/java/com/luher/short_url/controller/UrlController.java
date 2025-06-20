@@ -2,6 +2,10 @@ package com.luher.short_url.controller;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -66,6 +70,23 @@ public class UrlController {
     @GetMapping("/all")
     public ResponseEntity<?> getAllUrls() {
         List<UrlEntity> urlEntities = urlService.getAllUrls();
+        return ResponseEntity.ok(urlEntities);
+    }
+
+    @GetMapping("/all/paginated")
+    public ResponseEntity<?> getAllUrlsPaginated(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        
+        Sort sort = sortDir.equalsIgnoreCase("asc") ? 
+            Sort.by(sortBy).ascending() : 
+            Sort.by(sortBy).descending();
+        
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Page<UrlEntity> urlEntities = urlService.getAllUrlsPaginated(pageable);
+        
         return ResponseEntity.ok(urlEntities);
     }
 

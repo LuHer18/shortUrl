@@ -1,9 +1,20 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
-import { ShortUrl, FormInputs } from '../types'
+import { ShortUrl, FormInputs, PaginatedResponse, PaginationParams } from '../types'
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
 
 export const useShortUrl = () => {
   const [urls, setUrls] = useState<ShortUrl[]>([])
+  const [loading, setLoading] = useState(false)
+  const [pagination, setPagination] = useState<PaginationParams>({
+    page: 0,
+    size: 10,
+    sortBy: 'id',
+    sortDir: 'desc'
+  })
+  const [totalElements, setTotalElements] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
   
   const methods = useForm<FormInputs>({
     defaultValues: {
@@ -12,25 +23,107 @@ export const useShortUrl = () => {
     }
   })
 
-  const createShortUrl = (data: FormInputs) => {
-    const newShortUrl: ShortUrl = {
-      id: Date.now().toString(),
-      name: data.name,
-      originalUrl: data.urlOriginal,
-      shortUrl: `http://localhost:3000/${Math.random().toString(36).substring(7)}`
+  const fetchUrls = async (params: PaginationParams) => {
+    setLoading(true)
+    try {
+      const queryParams = new URLSearchParams({
+        page: params.page.toString(),
+        size: params.size.toString(),
+        sortBy: params.sortBy || 'id',
+        sortDir: params.sortDir || 'desc'
+      })
+      
+      const response = await fetch(
+        `${API_BASE_URL}/api/v1/url/all/paginated?${queryParams}`
+      )
+      
+      if (!response.ok) {
+        throw new Error('Error al cargar las URLs')
+      }
+      
+      const data: PaginatedResponse<ShortUrl> = await response.json()
+      setUrls(data.content)
+      setTotalElements(data.totalElements)
+      setTotalPages(data.totalPages)
+    } catch (error) {
+      console.error('Error fetching URLs:', error)
+      setUrls([])
+      setTotalElements(0)
+      setTotalPages(0)
+    } finally {
+      setLoading(false)
     }
-    setUrls(prevUrls => [...prevUrls, newShortUrl])
-    methods.reset()
   }
 
-  const deleteUrl = (id: string) => {
-    setUrls(prevUrls => prevUrls.filter(url => url.id !== id))
+  useEffect(() => {
+    fetchUrls(pagination)
+  }, [pagination])
+
+  const createShortUrl = async (data: FormInputs) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/url`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: data.name,
+          urlOriginal: data.urlOriginal
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Error al crear la URL')
+      }
+      
+      // Recargar la página actual después de crear
+      fetchUrls(pagination)
+      methods.reset()
+    } catch (error) {
+      console.error('Error creating short URL:', error)
+    }
+  }
+
+  const deleteUrl = async (id: number) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/url/${id}`, {
+        method: 'DELETE'
+      })
+      
+      if (!response.ok) {
+        throw new Error('Error al eliminar la URL')
+      }
+      
+      // Recargar la página actual después de eliminar
+      fetchUrls(pagination)
+    } catch (error) {
+      console.error('Error deleting URL:', error)
+    }
+  }
+
+  const changePage = (newPage: number) => {
+    setPagination(prev => ({ ...prev, page: newPage }))
+  }
+
+  const changePageSize = (newSize: number) => {
+    setPagination({ ...pagination, page: 0, size: newSize })
+  }
+
+  const changeSort = (sortBy: string, sortDir: string) => {
+    setPagination({ ...pagination, page: 0, sortBy, sortDir })
   }
 
   return {
     urls,
+    loading,
     methods,
     createShortUrl,
-    deleteUrl
+    deleteUrl,
+    pagination,
+    totalElements,
+    totalPages,
+    changePage,
+    changePageSize,
+    changeSort
   }
 } 

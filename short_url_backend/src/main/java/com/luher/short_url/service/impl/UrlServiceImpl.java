@@ -7,6 +7,8 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import com.luher.short_url.dto.UrlDto;
@@ -83,5 +85,9 @@ public class UrlServiceImpl implements UrlService {
         return urlRepository.findAll();
     }
 
+    @Override
+    public Page<UrlEntity> getAllUrlsPaginated(Pageable pageable) {
+        return urlRepository.findAll(pageable);
+    }
 
 }
